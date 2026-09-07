@@ -1,156 +1,134 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>代行料金計算ツール</title>
-  <style>
-    body { font-family: sans-serif; padding: 2em; background: #f4f4f4; }
-    input, button { padding: 0.5em; font-size: 1em; }
-    .result { margin-top: 1em; font-weight: bold; }
-
-    .input-group {
-      display: flex;
-      gap: 1em;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    @media screen and (max-width: 600px) {
-      .input-group {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .input-group label,
-      .input-group input {
-        width: 100%;
-      }
-    }
-
-    .table-container,
-    .history-container {
-      margin-top: 2em;
-      max-height: 300px;
-      overflow-y: scroll;
-      border: 1px solid #ccc;
-      background: #fff;
-      padding: 1em;
-    }
-
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 0.5em; text-align: right; }
-    th { background-color: #eee; position: sticky; top: 0; }
-    caption { text-align: left; font-weight: bold; margin-bottom: 0.5em; }
-  </style>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>メカニック計算機</title>
+    <style>
+        body { font:14px sans-serif; background:#1e1e24; color:#fff; padding:10px; margin:0; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; }
+        .card { background:#2a2a35; padding:10px; border-radius:8px; border:1px solid #48485a; margin-bottom:10px; }
+        h2, th { color:#ff9f43; margin:0 0 5px 0; border-bottom:2px solid #ff9f43; padding-bottom:3px; }
+        .mat h2, .mat th { color:#4cd137; border-bottom-color:#4cd137; }
+        .sub { font-weight:bold; background:#3e3e50; padding:2px 6px; margin:8px 0 3px 0; border-radius:4px; font-size:12px; }
+        table { width:100%; border-collapse:collapse; }
+        td, th { padding:4px 2px; border-bottom:1px solid #48485a; text-align:left; }
+        .num { text-align:right; }
+        input[type="number"] { width:55px; background:#1e1e24; color:#fff; border:2px solid #48485a; text-align:right; border-radius:4px; font-weight:bold; }
+        input[type="number"]:focus { outline:none; border-color:#4cd137; background:#253d24; }
+        .box { background:#323242; padding:8px; border-radius:6px; margin-top:8px; font-weight:bold; display:flex; justify-content:space-between; border:1px solid #ff9f43; }
+        .mat .box { border-color:#4cd137; }
+        .panel { background:#2a2a35; border:2px solid #ff9f43; border-radius:8px; padding:10px; margin-top:10px; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; text-align:center; }
+        .p-item { background:#1e1e24; padding:8px; border-radius:6px; }
+        .p-item div { font-size:11px; color:#aaa; }
+        .p-item span { font-size:16px; font-weight:bold; color:#ff9f43; }
+        .p-item.w span { color:#fff; }
+        .pad { background:#22222a; border-radius:6px; padding:8px; margin-top:8px; }
+        .pad-grid { display:grid; grid-template-columns:1fr 55px; gap:8px; }
+        .keys { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; }
+        .navs { display:grid; grid-template-rows:1fr 1fr; gap:5px; }
+        .rst-area { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+        button { background:#3a3a4a; color:#fff; border:none; padding:8px; font-weight:bold; border-radius:4px; cursor:pointer; }
+        button:active { background:#4cd137; }
+        button.clr { background:#ff6b6b; }
+        button.nav { background:#4a4a5a; font-size:16px; }
+        button.rst-chk { background:#e17055; padding:12px; font-size:13px; }
+        button.rst-num { background:#d63031; padding:12px; font-size:13px; }
+    </style>
 </head>
 <body>
-  <h1>代行料金計算</h1>
-  <div class="input-group">
-    <label for="distance">走行距離（km）:</label>
-    <input type="number" id="distance" min="0" step="0.1">
-    <label for="taxRate">消費税率（%）:</label>
-    <input type="number" id="taxRate" min="0" step="0.1" value="10">
-  </div>
-  <button onclick="calculate()">計算する</button>
-  <div class="result" id="result"></div>
 
-  <div class="table-container">
-    <table>
-      <caption>📊 料金早見表（0〜100km）</caption>
-      <thead>
-        <tr>
-          <th>距離 (km)</th>
-          <th>税込料金 (円)</th>
-          <th>税抜価格 (円)</th>
-          <th>消費税額 (円)</th>
-        </tr>
-      </thead>
-      <tbody id="fareTable"></tbody>
-    </table>
-  </div>
+    <div class="grid">
+        <div class="card">
+            <h2>修理・整備</h2>
+            <table id="t-rep"></table>
+            <div style="background:#1e1e24; padding:5px; border-radius:4px; margin-top:8px;"><label><input type="checkbox" id="heli" onchange="calc()"> 出張費 (+1M)</label></div>
+            <div class="box"><span>修理 計:</span><span id="v-rep">0</span></div>
+        </div>
 
-  <div class="history-container">
-    <h2>📝 計算履歴 (一時保存)</h2>
-    <b>新しい順</b>
-    <table>
-      <thead>
-        <tr>
-          <th>距離 (km)</th>
-          <th>税率 (%)</th>
-          <th>税込 (円)</th>
-          <th>税抜 (円)</th>
-          <th>消費税 (円)</th>
-        </tr>
-      </thead>
-      <tbody id="historyTable"></tbody>
-    </table>
-  </div>
+        <div class="card">
+            <h2>性能カスタム</h2>
+            <div id="t-cust"></div>
+            <div class="box"><span>性能 計:</span><span id="v-cust">0</span></div>
+        </div>
 
-  <script>
-    const baseDistance = 4;
-    const baseFare = 1200;
-    const extraPerKm = 200;
+        <div class="card">
+            <h2>エンジンスワップ</h2>
+            <table id="t-swap"></table>
+            <div class="box"><span>スワップ 計:</span><span id="v-swap">0</span></div>
+        </div>
 
-    function calculate() {
-      const km = parseFloat(document.getElementById('distance').value);
-      const taxRate = parseFloat(document.getElementById('taxRate').value);
-      if (isNaN(km) || km < 0 || isNaN(taxRate) || taxRate < 0) {
-        document.getElementById('result').textContent = "正しい距離と税率を入力してください。";
-        return;
-      }
+        <div class="card mat">
+            <h2>素材・アイテム買取表</h2>
+            <table id="t-mat"></table>
+            <div class="box"><span>買取 計:</span><span id="v-mat">0</span></div>
+            <div style="color:#ff6b6b; font-size:0.75rem; text-align:center; font-weight:bold; margin-top:5px;">※上記以外買取禁止</div>
 
-      const extraKm = Math.floor(km) > baseDistance ? Math.floor(km) - baseDistance : 0;
-      const total = baseFare + extraKm * extraPerKm;
-      const divisor = 1 + (taxRate / 100);
-      const cost = Math.floor(total / divisor);
-      const tax = total - cost;
+            <!-- キーパッドと大きくなったリセットボタン -->
+            <div class="pad">
+                <div class="pad-grid">
+                    <div class="keys">
+                        <script>for(let i=1;i<=9;i++) document.write(`<button onclick="pk(${i})">${i}</button>`);</script>
+                        <button class="clr" onclick="pc()">C</button><button onclick="pk(0)">0</button><button onclick="pk('00')">00</button>
+                    </div>
+                    <div class="navs"><button class="nav" onclick="mv(-1)">▲</button><button class="nav" onclick="mv(1)">▼</button></div>
+                </div>
+                <!-- ここに大きく配置 -->
+                <div class="rst-area">
+                    <button class="rst-chk" onclick="cr()">CHECK RESET</button>
+                    <button class="rst-num" onclick="ar()">NUMBER RESET</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-      document.getElementById('result').innerHTML = `
-        合計料金：${Math.floor(total).toLocaleString()} 円<br>
-        └ 税抜価格：${cost.toLocaleString()} 円<br>
-        └ 消費税額：${tax.toLocaleString()} 円
-      `;
+    <div class="panel">
+        <div class="p-item"><div>総合計 (出張費含)</div><span id="v-total">0</span></div>
+        <div class="p-item w"><div>白市民用 請求額</div><span id="v-civil">0</span></div>
+        <div class="p-item w"><div>PD用 請求額(出張無)</div><span id="v-pd">0</span></div>
+    </div>
 
-      const historyRow = `<tr>
-        <td>${km}</td>
-        <td>${taxRate}</td>
-        <td>${Math.floor(total).toLocaleString()}</td>
-        <td>${cost.toLocaleString()}</td>
-        <td>${tax.toLocaleString()}</td>
-      </tr>`;
-      document.getElementById('historyTable').insertAdjacentHTML('beforeend', historyRow);
-    }
+    <script>
+        const D = {
+            rep: [["エンジン",500000],["サスペンション",150000],["タイヤ",200000],["オイル",50000],["クラッチ",150000],["フィルター",50000],["プラグ",200000],["ブレーキパッド",700000],["タイヤ交換",400000],["EVバッテリー",250000],["EVモーター",500000],["EV冷却液",50000]],
+            eng: [["Lv5",10000000],["Lv4",8000000],["Lv3",6000000],["Lv2",4000000],["Lv1",2000000]],
+            trans:[["Lv4",5000000],["Lv3",4000000],["Lv2",3000000],["Lv1",2000000]],
+            brk: [["Lv3",4000000],["Lv2",3000000],["Lv1",2000000]],
+            arm: [["Lv 5",10000000],["Lv 4",8000000],["Lv 3",6000000],["Lv 2",4000000],["Lv 1",2000000]],
+            swap:[["V12 (6.0L)",200000000],["V8 (5.4L)",150000000],["V6 (6.0L)",100000000],["I4 (2.0L)",50000000]],
+            mat: [["鋼",5000],["鉄",2500],["プラスチック",2500],["アルミ",2500],["ゴム",2500],["ガラス",2500],["銅",2500],["布",2500],["金属スクラップ",2500],["ダクトテープ",50000],["クリーニングキット",50000]]
+        };
+        let aid = null;
 
-    document.addEventListener('keydown', function(event) {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        calculate();
-      }
-    });
+        const rc = (el, arr, p) => el.innerHTML = arr.map((x, i) => `<tr><td style="width:30px;"><input type="checkbox" id="${p}-${i}" onchange="calc()"></td><td><label for="${p}-${i}">${x[0]}</label></td><td class="num">${x[1].toLocaleString()}</td></tr>`).join('');
+        rc(document.getElementById('t-rep'), D.rep, 'r');
+        rc(document.getElementById('t-swap'), D.swap, 's');
 
-    function generateTable() {
-      const table = document.getElementById('fareTable');
-      const taxRate = parseFloat(document.getElementById('taxRate').value);
-      const divisor = 1 + (taxRate / 100);
-      table.innerHTML = "";
+        let cHtml = '';
+        [['Engine','eng','e'],['Transmission','trans','t'],['Brake','brk','b'],['Armor','arm','a']].forEach(k => {
+            cHtml += `<div class="sub">${k[0]}</div><table>` + D[k[1]].map((x,i) => `<tr><td style="width:30px;"><input type="checkbox" id="${k[2]}-${i}" onchange="calc()"></td><td><label for="${k[2]}-${i}">${x[0]}</label></td><td class="num">${x[1].toLocaleString()}</td></tr>`).join('') + `</table>`;
+        });
+        document.getElementById('t-cust').innerHTML = cHtml;
+        document.getElementById('t-mat').innerHTML = D.mat.map((x, i) => `<tr><td><b>${x[0]}</b></td><td style="text-align:center;"><input type="number" min="0" value="0" id="m-${i}" oninput="calc()" onfocus="aid='m-${i}'"></td><td class="num">${x[1].toLocaleString()}</td></tr>`).join('');
 
-      for (let km = 0; km <= 100; km++) {
-        const extraKm = km > baseDistance ? km - baseDistance : 0;
-        const total = baseFare + extraKm * extraPerKm;
-        const cost = Math.floor(total / divisor);
-        const tax = total - cost;
-        const row = `<tr>
-          <td>${km}</td>
-          <td>${Math.floor(total).toLocaleString()}</td>
-          <td>${cost.toLocaleString()}</td>
-          <td>${tax.toLocaleString()}</td>
-        </tr>`;
-        table.insertAdjacentHTML('beforeend', row);
-      }
-    }
+        function calc() {
+            const sc = (arr, p) => arr.reduce((acc, x, i) => acc + (document.getElementById(`${p}-${i}`).checked ? x[1] : 0), 0);
+            let r = sc(D.rep, 'r'), c = sc(D.eng, 'e') + sc(D.trans, 't') + sc(D.brk, 'b') + sc(D.arm, 'a'), s = sc(D.swap, 's'), m = D.mat.reduce((acc, x, i) => acc + ((parseInt(document.getElementById(`m-${i}`).value) || 0) * x[1]), 0);
+            let f = document.getElementById('heli').checked ? 1000000 : 0, b = r + c + s;
+            document.getElementById('v-rep').innerText = r.toLocaleString();
+            document.getElementById('v-cust').innerText = c.toLocaleString();
+            document.getElementById('v-swap').innerText = s.toLocaleString();
+            document.getElementById('v-mat').innerText = m.toLocaleString();
+            document.getElementById('v-total').innerText = (b + f).toLocaleString();
+            document.getElementById('v-civil').innerText = (b + f).toLocaleString();
+            document.getElementById('v-pd').innerText = b.toLocaleString();
+        }
 
-    generateTable();
-    document.getElementById('taxRate').addEventListener('input', generateTable);
-  </script>
+        function pk(n) { if(!aid) return; let i=document.getElementById(aid); i.value=(i.value==='0'?'':i.value)+n; calc(); }
+        function pc() { if(aid) { document.getElementById(aid).value=0; calc(); } }
+        function ar() { D.mat.forEach((_,i)=>document.getElementById(`m-${i}`).value=0); calc(); document.getElementById('m-0').focus(); }
+        function cr() { ['r','s','e','t','b','a'].forEach(p => D[p==='r'?'rep':p==='s'?'swap':p==='e'?'eng':p==='t'?'trans':p==='b'?'brk':'arm'].forEach((_,i)=>document.getElementById(`${p}-${i}`).checked=false)); document.getElementById('heli').checked=false; calc(); }
+        function mv(d) { if(!aid) return; let n = (parseInt(aid.replace('m-', '')) + d + D.mat.length) % D.mat.length; document.getElementById(`m-${n}`).focus(); }
+        window.onload = () => { calc(); document.getElementById('m-0').focus(); };
+    </script>
 </body>
 </html>
